@@ -1,0 +1,41 @@
+//
+//  LanguageOption.swift
+//  RealtimeTranslator
+//
+//  支援的語言選項
+//
+
+import Foundation
+
+/// 語言選項模型
+struct LanguageOption: Identifiable, Hashable, Codable {
+    /// 唯一識別碼（使用語言代碼）
+    let id: String
+
+    /// 語言名稱
+    let name: String
+
+    /// 語言代碼
+    let code: String
+
+    /// 國旗 emoji
+    let flag: String
+
+    /// 支援的語言列表
+    static let availableLanguages: [LanguageOption] = [
+        LanguageOption(id: "zh-TW", name: "繁體中文", code: "zh-TW", flag: "🇹🇼"),
+        LanguageOption(id: "en", name: "English", code: "en", flag: "🇺🇸"),
+        LanguageOption(id: "ja", name: "日本語", code: "ja", flag: "🇯🇵"),
+        LanguageOption(id: "ko", name: "한국어", code: "ko", flag: "🇰🇷"),
+        LanguageOption(id: "es", name: "Español", code: "es", flag: "🇪🇸"),
+        LanguageOption(id: "fr", name: "Français", code: "fr", flag: "🇫🇷")
+    ]
+
+    /// 預設語言（繁體中文）
+    static let defaultLanguage = availableLanguages[0]
+
+    /// 根據語言代碼取得語言選項
+    static func language(forCode code: String) -> LanguageOption? {
+        availableLanguages.first { $0.code == code }
+    }
+}
