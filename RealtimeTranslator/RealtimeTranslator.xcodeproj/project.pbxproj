@@ -31,6 +31,7 @@
 		9222BD742EB3050D0044F7AC /* RealtimeTranslatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BD3D2EB3050D0044F7AC /* RealtimeTranslatorApp.swift */; };
 		9222BD752EB3050D0044F7AC /* RecordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BD522EB3050D0044F7AC /* RecordButton.swift */; };
 		9222BD762EB3050D0044F7AC /* APIKeySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BD572EB3050D0044F7AC /* APIKeySetupView.swift */; };
+		9222BE022EB889350044F7AC /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BE012EB889350044F7AC /* HistoryManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,6 +80,7 @@
 		9222BD5A2EB3050D0044F7AC /* APIKeyManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeyManagementView.swift; sourceTree = "<group>"; };
 		9222BD5B2EB3050D0044F7AC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9222BD7C2EB3060D0044F7AC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		9222BE012EB889350044F7AC /* HistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -163,6 +165,7 @@
 		9222BD4C2EB3050D0044F7AC /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				9222BE012EB889350044F7AC /* HistoryManager.swift */,
 				9222BD472EB3050D0044F7AC /* AudioProcessor.swift */,
 				9222BD482EB3050D0044F7AC /* AudioRecorder.swift */,
 				9222BD492EB3050D0044F7AC /* KeychainManager.swift */,
@@ -218,14 +221,6 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
-		9222BD772EB3060D0044F7AC /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				9222BD7C2EB3060D0044F7AC /* Info.plist */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
 		9222BD5D2EB3050D0044F7AC /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -249,6 +244,14 @@
 				9222BCDE2EB304360044F7AC /* Assets.xcassets */,
 			);
 			path = RealtimeTranslator;
+			sourceTree = "<group>";
+		};
+		9222BD772EB3060D0044F7AC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				9222BD7C2EB3060D0044F7AC /* Info.plist */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -405,6 +408,7 @@
 				9222BD692EB3050D0044F7AC /* AboutView.swift in Sources */,
 				9222BD6A2EB3050D0044F7AC /* LanguageOption.swift in Sources */,
 				9222BD6B2EB3050D0044F7AC /* MainView.swift in Sources */,
+				9222BE022EB889350044F7AC /* HistoryManager.swift in Sources */,
 				9222BD6C2EB3050D0044F7AC /* ConnectionState.swift in Sources */,
 				9222BD6D2EB3050D0044F7AC /* AppState.swift in Sources */,
 				9222BD6E2EB3050D0044F7AC /* RealtimeAPIService.swift in Sources */,

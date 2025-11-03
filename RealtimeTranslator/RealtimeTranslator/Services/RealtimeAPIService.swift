@@ -22,7 +22,12 @@ class RealtimeAPIService: ObservableObject {
     @Published var currentTranslation: String = ""
 
     /// 歷史記錄
-    @Published var transcriptionHistory: [TranscriptionItem] = []
+    @Published var transcriptionHistory: [TranscriptionItem] = [] {
+        didSet {
+            // 每次歷史記錄變更時自動儲存
+            HistoryManager.shared.saveHistory(transcriptionHistory)
+        }
+    }
 
     /// Token 使用統計
     @Published var tokenUsage: TokenUsage = TokenUsage()
@@ -43,6 +48,9 @@ class RealtimeAPIService: ObservableObject {
 
     /// 目標翻譯語言
     private var targetLanguage: LanguageOption = .defaultLanguage
+    
+    /// 輸入音訊語言
+    private var inputLanguage: LanguageOption = .defaultInputLanguage
 
     /// API Key
     private var apiKey: String?
@@ -103,6 +111,17 @@ class RealtimeAPIService: ObservableObject {
     init() {
         setupWebSocketCallbacks()
         setupAudioRecorderCallbacks()
+        loadHistory()
+    }
+    
+    // MARK: - 歷史記錄管理
+    
+    /// 載入歷史記錄
+    private func loadHistory() {
+        let loadedHistory = HistoryManager.shared.loadHistory()
+        DispatchQueue.main.async {
+            self.transcriptionHistory = loadedHistory
+        }
     }
 
     // MARK: - 公開方法
@@ -154,6 +173,17 @@ class RealtimeAPIService: ObservableObject {
             sendSessionUpdate()
         }
     }
+    
+    /// 更新輸入音訊語言
+    /// - Parameter language: 輸入語言
+    func updateInputLanguage(_ language: LanguageOption) {
+        inputLanguage = language
+        
+        // 如果已連線，更新 session 設定
+        if connectionState == .connected {
+            sendSessionUpdate()
+        }
+    }
 
     /// 開始錄音
     func startRecording() {
@@ -190,6 +220,7 @@ class RealtimeAPIService: ObservableObject {
         transcriptionHistory.removeAll()
         currentTranscription = ""
         currentTranslation = ""
+        HistoryManager.shared.clearHistory()
     }
 
     /// 開始即時翻譯模式
@@ -336,6 +367,12 @@ class RealtimeAPIService: ObservableObject {
     /// - Returns: (是否啟用, 靈敏度閾值)
     func getVADSettings() -> (enabled: Bool, threshold: Float) {
         return (isVADEnabled, vadThreshold)
+    }
+    
+    /// 獲取當前輸入語言
+    /// - Returns: 當前輸入語言
+    func getInputLanguage() -> LanguageOption {
+        return inputLanguage
     }
 
     /// 匯出歷史記錄為文字
@@ -628,20 +665,30 @@ class RealtimeAPIService: ObservableObject {
 
     /// 生成翻譯指令
     private func generateInstructions() -> String {
-        let languageName = targetLanguage.name
-        let languageCode = targetLanguage.code
+        let targetLanguageName = targetLanguage.name
+        let targetLanguageCode = targetLanguage.code
+        let inputLanguageName = inputLanguage.name
+        let inputLanguageCode = inputLanguage.code
+        
+        // 根據輸入語言設定，生成對應的提示
+        let inputLanguagePrompt: String
+        if inputLanguageCode == "auto" {
+            inputLanguagePrompt = "你會收到使用者的語音輸入（可能是任何語言）"
+        } else {
+            inputLanguagePrompt = "你會收到使用者的**\(inputLanguageName)**語音輸入（語言代碼: \(inputLanguageCode)）"
+        }
 
         return """
-        你是一個專業的即時翻譯助手。你會收到使用者的語音輸入，請執行以下任務：
+        你是一個專業的即時翻譯助手。\(inputLanguagePrompt)，請執行以下任務：
 
         1. 將語音轉錄成文字（原文）
-        2. 將原文翻譯成 \(languageName)（語言代碼: \(languageCode)）
+        2. 將原文翻譯成 \(targetLanguageName)（語言代碼: \(targetLanguageCode)）
 
         **重要：請以 JSON 格式回覆，格式如下：**
         ```json
         {
           "transcription": "使用者說的原文內容",
-          "translation": "翻譯後的\(languageName)內容"
+          "translation": "翻譯後的\(targetLanguageName)內容"
         }
         ```
 
@@ -650,6 +697,7 @@ class RealtimeAPIService: ObservableObject {
         - 確保 JSON 格式正確，可以被解析
         - 保持轉錄和翻譯的準確性和流暢性
         - 如果語音不清晰或無法理解，transcription 和 translation 都設為空字串
+        \(inputLanguageCode != "auto" ? "- 輸入音訊應為 \(inputLanguageName)，這有助於提高辨識準確度" : "- 請自動識別輸入音訊的語言")
         """
     }
 

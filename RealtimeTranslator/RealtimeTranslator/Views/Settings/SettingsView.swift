@@ -38,6 +38,7 @@ struct SettingsView: View {
     @State private var audioSubmissionInterval: Double = 4.0
     @State private var isVADEnabled: Bool = true
     @State private var vadThreshold: Double = 0.01
+    @State private var selectedInputLanguage: LanguageOption = .defaultInputLanguage
 
     // MARK: - 視圖
 
@@ -56,6 +57,27 @@ struct SettingsView: View {
                     Button(action: { showingAPIKeyManagement = true }) {
                         Label("管理 API Key", systemImage: "key.fill")
                     }
+                }
+                
+                // 語言設定區塊
+                Section(header: Text("語言設定")) {
+                    Picker("輸入語言", selection: $selectedInputLanguage) {
+                        ForEach(LanguageOption.availableInputLanguages) { language in
+                            HStack {
+                                Text(language.flag)
+                                Text(language.name)
+                            }
+                            .tag(language)
+                        }
+                    }
+                    .onChange(of: selectedInputLanguage) { _, newValue in
+                        apiService.updateInputLanguage(newValue)
+                    }
+                    
+                    Text("選擇輸入音訊的語言以提高辨識準確度。選擇「自動偵測」讓系統自動判斷。")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 4)
                 }
                 
                 // VAD 語音活動檢測設定
@@ -202,6 +224,13 @@ struct SettingsView: View {
                         Text("\(transcriptionHistoryCount)")
                             .foregroundColor(.secondary)
                     }
+                    
+                    HStack {
+                        Text("儲存空間")
+                        Spacer()
+                        Text(formatFileSize(HistoryManager.shared.getHistoryFileSize()))
+                            .foregroundColor(.secondary)
+                    }
 
                     NavigationLink(destination: HistoryListView(apiService: apiService)) {
                         Label("查看所有記錄", systemImage: "list.bullet")
@@ -287,6 +316,9 @@ struct SettingsView: View {
         let vadSettings = apiService.getVADSettings()
         isVADEnabled = vadSettings.enabled
         vadThreshold = Double(vadSettings.threshold)
+        
+        // 載入當前輸入語言設定
+        selectedInputLanguage = apiService.getInputLanguage()
     }
     
     /// 更新音訊設定
@@ -324,6 +356,17 @@ struct SettingsView: View {
     /// 重置統計
     private func resetStatistics() {
         apiService.tokenUsage = TokenUsage()
+    }
+    
+    /// 格式化檔案大小
+    private func formatFileSize(_ sizeInKB: Double) -> String {
+        if sizeInKB < 1 {
+            return "< 1 KB"
+        } else if sizeInKB < 1024 {
+            return String(format: "%.1f KB", sizeInKB)
+        } else {
+            return String(format: "%.2f MB", sizeInKB / 1024.0)
+        }
     }
 }
 
