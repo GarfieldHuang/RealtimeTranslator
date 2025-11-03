@@ -29,8 +29,8 @@ class AudioRecorder: NSObject {
 
     // MARK: - 回調
 
-    /// 音訊資料可用時的回調
-    var onAudioDataAvailable: ((Data) -> Void)?
+    /// 音訊資料可用時的回調（包含音訊數據和音量資訊）
+    var onAudioDataAvailable: ((Data, Float) -> Void)?
 
     /// 錄音狀態變更回調
     var onRecordingStateChanged: ((Bool) -> Void)?
@@ -123,9 +123,12 @@ class AudioRecorder: NSObject {
         inputNode?.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { [weak self] buffer, time in
             guard let self = self else { return }
 
+            // 計算音量（使用原始 buffer）
+            let volume = AudioProcessor.calculateVolume(buffer)
+
             // 轉換音訊格式
             if let convertedData = self.convertAudioBuffer(buffer, using: converter, targetFormat: targetFormat) {
-                self.onAudioDataAvailable?(convertedData)
+                self.onAudioDataAvailable?(convertedData, volume)
             }
         }
 

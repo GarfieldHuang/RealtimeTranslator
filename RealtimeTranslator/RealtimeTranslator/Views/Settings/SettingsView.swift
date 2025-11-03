@@ -36,6 +36,8 @@ struct SettingsView: View {
     @State private var voicePauseThreshold: Double = 1.5
     @State private var audioBufferSize: Double = 150
     @State private var audioSubmissionInterval: Double = 4.0
+    @State private var isVADEnabled: Bool = true
+    @State private var vadThreshold: Double = 0.01
 
     // MARK: - 視圖
 
@@ -53,6 +55,42 @@ struct SettingsView: View {
 
                     Button(action: { showingAPIKeyManagement = true }) {
                         Label("管理 API Key", systemImage: "key.fill")
+                    }
+                }
+                
+                // VAD 語音活動檢測設定
+                Section(header: Text("語音活動檢測 (VAD)")) {
+                    Toggle(isOn: $isVADEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("啟用 VAD")
+                            Text("自動偵測語音活動，提升準確度")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .onChange(of: isVADEnabled) { _, newValue in
+                        apiService.setVADEnabled(newValue)
+                    }
+                    
+                    if isVADEnabled {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("靈敏度")
+                                Spacer()
+                                Text(formatVADThreshold(vadThreshold))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Slider(value: $vadThreshold, in: 0.005...0.05, step: 0.001)
+                                .onChange(of: vadThreshold) { _, newValue in
+                                    apiService.setVADThreshold(Float(newValue))
+                                }
+                            
+                            Text("越低越靈敏，建議範圍 0.005-0.05")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
                 
@@ -245,6 +283,10 @@ struct SettingsView: View {
         voicePauseThreshold = settings.pauseThreshold
         audioBufferSize = Double(settings.bufferSize)
         audioSubmissionInterval = settings.submissionInterval
+        
+        let vadSettings = apiService.getVADSettings()
+        isVADEnabled = vadSettings.enabled
+        vadThreshold = Double(vadSettings.threshold)
     }
     
     /// 更新音訊設定
@@ -261,7 +303,22 @@ struct SettingsView: View {
         voicePauseThreshold = 1.5
         audioBufferSize = 150
         audioSubmissionInterval = 4.0
+        isVADEnabled = true
+        vadThreshold = 0.01
         updateAudioSettings()
+        apiService.setVADEnabled(isVADEnabled)
+        apiService.setVADThreshold(Float(vadThreshold))
+    }
+    
+    /// 格式化 VAD 閾值顯示
+    private func formatVADThreshold(_ value: Double) -> String {
+        if value < 0.01 {
+            return String(format: "%.3f (高靈敏)", value)
+        } else if value < 0.02 {
+            return String(format: "%.3f (標準)", value)
+        } else {
+            return String(format: "%.3f (低靈敏)", value)
+        }
     }
 
     /// 重置統計

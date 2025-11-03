@@ -85,6 +85,18 @@ class RealtimeAPIService: ObservableObject {
     
     /// 是否為新的翻譯回應（用於添加斷行）
     private var isNewTranslationResponse = true
+    
+    /// 是否啟用 VAD（語音活動檢測）
+    private var isVADEnabled = true
+    
+    /// VAD 靈敏度閾值（0.0-1.0，越低越靈敏）
+    private var vadThreshold: Float = 0.01
+    
+    /// 即時翻譯模式是否正在等待最後的回應
+    private var isWaitingForFinalResponse = false
+    
+    /// 是否正在等待 API 回應（用於控制提交速率）
+    private var isWaitingForResponse = false
 
     // MARK: - 初始化
 
@@ -199,6 +211,7 @@ class RealtimeAPIService: ObservableObject {
                 DispatchQueue.main.async {
                     self?.isLiveTranslating = true
                     self?.isNewTranslationResponse = true // 重置新翻譯標誌
+                    self?.isWaitingForResponse = false // 重置等待回應標誌
                     // 不清除 currentTranslation，保留之前的內容
                     self?.currentTranscription = ""
                     self?.audioBufferSize = 0
@@ -222,40 +235,62 @@ class RealtimeAPIService: ObservableObject {
         // 最後提交一次音訊（如果有剩餘的緩衝）
         commitAudioBuffer()
         
-        // 延遲保存記錄，等待最後的 API 回應
-        // 因為轉錄和翻譯事件可能在停止按鈕按下後才到達
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            print("⏰ 延遲保存觸發")
-            print("📝 當前轉錄內容: '\(self.currentTranscription)'")
-            print("📝 當前翻譯內容: '\(self.currentTranslation)'")
+        // 標記為等待最後的回應
+        isWaitingForFinalResponse = true
+        
+        // 設定安全網：最多等待 10 秒，如果還沒收到回應就強制保存
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { [weak self] in
+            guard let self = self, self.isWaitingForFinalResponse else { return }
+            print("⏰ 安全網觸發：強制保存（10秒超時）")
+            self.saveCurrentTranslationToHistory()
+        }
+        
+        // 立即更新部分 UI 狀態（但保持 isLiveTranslating = true，直到保存完成）
+        DispatchQueue.main.async {
+            self.isVoiceActive = false
+            self.audioBufferSize = 0
+        }
+    }
+    
+    /// 保存當前翻譯到歷史記錄
+    private func saveCurrentTranslationToHistory() {
+        guard isWaitingForFinalResponse else { return }
+        
+        isWaitingForFinalResponse = false
+        
+        print("💾 準備保存即時翻譯內容")
+        print("📝 當前轉錄內容: '\(currentTranscription)'")
+        print("📝 當前翻譯內容: '\(currentTranslation)'")
+        
+        let shouldSaveHistory = !currentTranscription.isEmpty || !currentTranslation.isEmpty
+        
+        if shouldSaveHistory {
+            let transcription = currentTranscription.isEmpty ? "（無轉錄內容）" : currentTranscription
+            let translation = currentTranslation.isEmpty ? "（無翻譯內容）" : currentTranslation
             
-            let shouldSaveHistory = !self.currentTranscription.isEmpty || !self.currentTranslation.isEmpty
+            let item = TranscriptionItem(
+                originalText: transcription,
+                translatedText: translation,
+                targetLanguage: targetLanguage.code
+            )
             
-            if shouldSaveHistory {
-                let transcription = self.currentTranscription.isEmpty ? "（無轉錄內容）" : self.currentTranscription
-                let translation = self.currentTranslation.isEmpty ? "（無翻譯內容）" : self.currentTranslation
-                
-                let item = TranscriptionItem(
-                    originalText: transcription,
-                    translatedText: translation,
-                    targetLanguage: self.targetLanguage.code
-                )
-                
+            DispatchQueue.main.async {
                 self.transcriptionHistory.append(item)
-                print("💾 即時翻譯內容已保存到歷史記錄")
+                print("✅ 即時翻譯內容已保存到歷史記錄")
                 print("📝 記錄數量: \(self.transcriptionHistory.count)")
                 print("📝 原文: \(transcription)")
                 print("📝 翻譯: \(translation)")
-            } else {
-                print("⚠️ 延遲後仍沒有內容需要保存")
+                
+                // 保存完成後才設置為非即時翻譯模式
+                self.isLiveTranslating = false
+                print("✅ 即時翻譯模式已結束")
             }
-        }
-        
-        // 立即更新 UI 狀態
-        DispatchQueue.main.async {
-            self.isLiveTranslating = false
-            self.isVoiceActive = false
-            self.audioBufferSize = 0
+        } else {
+            print("⚠️ 沒有內容需要保存")
+            DispatchQueue.main.async {
+                self.isLiveTranslating = false
+                print("✅ 即時翻譯模式已結束（無內容）")
+            }
         }
     }
 
@@ -281,6 +316,26 @@ class RealtimeAPIService: ObservableObject {
     /// - Returns: (停頓閾值, 緩衝區大小, 提交間隔)
     func getAudioSubmissionSettings() -> (pauseThreshold: TimeInterval, bufferSize: Int, submissionInterval: TimeInterval) {
         return (voicePauseThreshold, maxAudioBufferSize, maxAudioSubmissionInterval)
+    }
+    
+    /// 啟用或停用 VAD（語音活動檢測）
+    /// - Parameter enabled: 是否啟用 VAD
+    func setVADEnabled(_ enabled: Bool) {
+        isVADEnabled = enabled
+        print("⚙️ VAD \(enabled ? "已啟用" : "已停用")")
+    }
+    
+    /// 設定 VAD 靈敏度
+    /// - Parameter threshold: 靈敏度閾值（0.0-1.0，越低越靈敏，建議範圍：0.005-0.05）
+    func setVADThreshold(_ threshold: Float) {
+        vadThreshold = max(0.001, min(0.1, threshold)) // 限制在 0.001-0.1 之間
+        print("⚙️ VAD 靈敏度已設定為: \(vadThreshold)")
+    }
+    
+    /// 獲取 VAD 設定
+    /// - Returns: (是否啟用, 靈敏度閾值)
+    func getVADSettings() -> (enabled: Bool, threshold: Float) {
+        return (isVADEnabled, vadThreshold)
     }
 
     /// 匯出歷史記錄為文字
@@ -349,9 +404,6 @@ class RealtimeAPIService: ObservableObject {
         case "conversation.item.created":
             handleConversationItemCreated(json)
 
-        case "conversation.item.input_audio_transcription.completed":
-            handleTranscriptionCompleted(json)
-
         case "response.text.delta":
             handleTextDelta(json)
 
@@ -388,73 +440,119 @@ class RealtimeAPIService: ObservableObject {
         print("📝 建立對話項目")
     }
 
-    /// 處理轉錄完成事件
-    private func handleTranscriptionCompleted(_ json: [String: Any]) {
-        guard let transcript = json["transcript"] as? String else { return }
+    /// 臨時累積的回應文字（用於處理串流式回應）
+    private var accumulatedResponseText = ""
 
-        DispatchQueue.main.async {
-            if self.isLiveTranslating {
-                // 即時翻譯模式：累積轉錄文字
-                if !self.currentTranscription.isEmpty {
-                    self.currentTranscription += " " + transcript
-                } else {
-                    self.currentTranscription = transcript
-                }
-                print("✅ 即時轉錄累積: \(transcript)")
-                print("📝 當前累積轉錄: \(self.currentTranscription)")
-            } else {
-                // 錄音翻譯模式：替換轉錄文字
-                self.currentTranscription = transcript
-                self.isTranscriptionComplete = true
-                print("✅ 錄音轉錄完成: \(transcript)")
-            }
-        }
-    }
-
-    /// 處理翻譯文字片段
+    /// 處理翻譯文字片段（GPT-4o 的串流式回應）
     private func handleTextDelta(_ json: [String: Any]) {
         guard let delta = json["delta"] as? String else { return }
-
-        DispatchQueue.main.async {
-            if self.isLiveTranslating {
-                // 如果是新的翻譯回應，且已有內容，則添加斷行
-                if self.isNewTranslationResponse && !self.currentTranslation.isEmpty {
-                    self.currentTranslation += "\n"
-                    self.isNewTranslationResponse = false
-                }
-                self.currentTranslation += delta
-            } else {
-                // 錄音翻譯模式：直接累積
-                self.currentTranslation += delta
-            }
-        }
+        
+        // 累積文字片段
+        accumulatedResponseText += delta
     }
 
-    /// 處理翻譯完成
+    /// 處理翻譯完成（解析完整的 JSON 回應）
     private func handleTextDone(_ json: [String: Any]) {
         guard let text = json["text"] as? String else { return }
-
+        
+        print("📥 收到完整回應: \(text)")
+        
+        // 解析 JSON 格式的回應
+        parseTranslationResponse(text)
+        
+        // 清空累積的文字
+        accumulatedResponseText = ""
+    }
+    
+    /// 解析翻譯回應（JSON 格式）
+    private func parseTranslationResponse(_ responseText: String) {
+        // 嘗試提取 JSON（移除可能的 markdown 標記）
+        var jsonString = responseText
+        
+        // 移除 ```json 和 ``` 標記
+        jsonString = jsonString.replacingOccurrences(of: "```json", with: "")
+        jsonString = jsonString.replacingOccurrences(of: "```", with: "")
+        jsonString = jsonString.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 嘗試解析 JSON
+        guard let jsonData = jsonString.data(using: .utf8),
+              let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: String],
+              let transcription = parsed["transcription"],
+              let translation = parsed["translation"] else {
+            print("⚠️ 無法解析 JSON 回應，使用原始文字")
+            // 如果解析失敗，將整個回應視為翻譯結果
+            handleFallbackResponse(responseText)
+            return
+        }
+        
+        print("✅ 成功解析 JSON")
+        print("📝 轉錄: \(transcription)")
+        print("🌐 翻譯: \(translation)")
+        
         DispatchQueue.main.async {
             if self.isLiveTranslating {
-                // 即時翻譯模式：textDelta 已經累積了完整翻譯，不需要重複處理
-                // 確保內容不被覆蓋，只記錄日誌
-                print("✅ 即時翻譯片段完成: \(text)")
-                print("📝 當前完整翻譯: \(self.currentTranslation)")
-                // 不修改 currentTranslation，保持 textDelta 累積的內容
+                // 即時翻譯模式：累積內容
+                if !transcription.isEmpty {
+                    if !self.currentTranscription.isEmpty {
+                        self.currentTranscription += " " + transcription
+                    } else {
+                        self.currentTranscription = transcription
+                    }
+                }
+                
+                if !translation.isEmpty {
+                    // 如果是新的翻譯回應，且已有內容，則添加斷行
+                    if self.isNewTranslationResponse && !self.currentTranslation.isEmpty {
+                        self.currentTranslation += "\n"
+                    }
+                    self.currentTranslation += translation
+                    self.isNewTranslationResponse = false
+                }
+                
+                print("📝 當前累積轉錄: \(self.currentTranscription)")
+                print("📝 當前累積翻譯: \(self.currentTranslation)")
             } else {
-                // 錄音翻譯模式：使用完整翻譯文字並加入歷史記錄
-                self.currentTranslation = text
-                print("✅ 錄音翻譯完成: \(text)")
-
+                // 錄音翻譯模式：替換內容
+                self.currentTranscription = transcription
+                self.currentTranslation = translation
+                self.isTranscriptionComplete = true
+                
+                print("✅ 錄音翻譯完成")
+                
                 // 加入歷史記錄
-                if !self.currentTranscription.isEmpty {
+                if !self.currentTranscription.isEmpty || !self.currentTranslation.isEmpty {
                     let item = TranscriptionItem(
-                        originalText: self.currentTranscription,
-                        translatedText: self.currentTranslation,
+                        originalText: self.currentTranscription.isEmpty ? "（無轉錄內容）" : self.currentTranscription,
+                        translatedText: self.currentTranslation.isEmpty ? "（無翻譯內容）" : self.currentTranslation,
                         targetLanguage: self.targetLanguage.code
                     )
                     self.transcriptionHistory.append(item)
                 }
+            }
+        }
+    }
+    
+    /// 處理無法解析 JSON 的回應（回退方案）
+    private func handleFallbackResponse(_ text: String) {
+        DispatchQueue.main.async {
+            if self.isLiveTranslating {
+                // 即時翻譯模式：將回應視為翻譯結果
+                if self.isNewTranslationResponse && !self.currentTranslation.isEmpty {
+                    self.currentTranslation += "\n"
+                }
+                self.currentTranslation += text
+                self.isNewTranslationResponse = false
+            } else {
+                // 錄音翻譯模式：將回應視為翻譯結果
+                self.currentTranslation = text
+                
+                // 加入歷史記錄
+                let item = TranscriptionItem(
+                    originalText: self.currentTranscription.isEmpty ? "（無法識別原文）" : self.currentTranscription,
+                    translatedText: text,
+                    targetLanguage: self.targetLanguage.code
+                )
+                self.transcriptionHistory.append(item)
             }
         }
     }
@@ -466,6 +564,16 @@ class RealtimeAPIService: ObservableObject {
             updateTokenUsage(usage)
         }
         print("✅ 回應完成")
+        
+        // 清除等待回應標誌，允許下一次提交
+        isWaitingForResponse = false
+        print("🔓 清除等待回應標誌 (isWaitingForResponse = false)")
+        
+        // 如果是即時翻譯模式且正在等待最後的回應，現在保存
+        if isWaitingForFinalResponse {
+            print("📥 收到最後的回應，立即保存")
+            saveCurrentTranslationToHistory()
+        }
     }
 
     /// 處理錯誤
@@ -504,12 +612,12 @@ class RealtimeAPIService: ObservableObject {
         let sessionUpdate: [String: Any] = [
             "type": "session.update",
             "session": [
-                "modalities": ["text"],
+                "modalities": ["text", "audio"],  // 啟用音訊輸入
                 "instructions": instructions,
-                "input_audio_transcription": [
-                    "model": "whisper-1"
-                ],
-                "turn_detection": NSNull(),
+                "voice": "alloy",  // 設定語音（雖然我們只用文字輸出）
+                "input_audio_format": "pcm16",  // 音訊格式
+                "output_audio_format": "pcm16",
+                "turn_detection": NSNull(),  // 停用自動回合檢測，我們手動控制
                 "temperature": temperature,
                 "max_response_output_tokens": 4096
             ]
@@ -524,9 +632,24 @@ class RealtimeAPIService: ObservableObject {
         let languageCode = targetLanguage.code
 
         return """
-        你是一個專業的即時翻譯助手。請將使用者的語音內容準確翻譯成 \(languageName)（語言代碼: \(languageCode)）。
-        請只輸出翻譯結果，不要加上任何解釋或額外內容。
-        保持翻譯的準確性和流暢性。
+        你是一個專業的即時翻譯助手。你會收到使用者的語音輸入，請執行以下任務：
+
+        1. 將語音轉錄成文字（原文）
+        2. 將原文翻譯成 \(languageName)（語言代碼: \(languageCode)）
+
+        **重要：請以 JSON 格式回覆，格式如下：**
+        ```json
+        {
+          "transcription": "使用者說的原文內容",
+          "translation": "翻譯後的\(languageName)內容"
+        }
+        ```
+
+        注意事項：
+        - 只輸出 JSON 格式，不要加上任何其他文字或解釋
+        - 確保 JSON 格式正確，可以被解析
+        - 保持轉錄和翻譯的準確性和流暢性
+        - 如果語音不清晰或無法理解，transcription 和 translation 都設為空字串
         """
     }
 
@@ -558,32 +681,40 @@ class RealtimeAPIService: ObservableObject {
     
     /// 檢查音訊提交條件
     private func checkAudioSubmissionConditions() {
+        // 如果正在等待回應，不提交新的音訊
+        guard !isWaitingForResponse else {
+            print("⏸️ 正在等待 API 回應，暫緩提交")
+            return
+        }
+        
         let now = Date()
         let timeSinceLastActivity = now.timeIntervalSince(lastAudioActivityTime)
         
         // 條件1：檢測到語音停頓超過閾值
         if isVoiceActive && timeSinceLastActivity > voicePauseThreshold {
-            print("🔍 檢測到語音停頓，提交音訊片段")
+            print("🔍 檢測到語音停頓，提交音訊片段 (buffer size: \(audioBufferSize))")
             commitAudioBufferIfNeeded()
             isVoiceActive = false
         }
         
         // 條件2：音訊緩衝區過大（避免過長片段）
         else if audioBufferSize > maxAudioBufferSize {
-            print("📦 音訊緩衝區已滿，強制提交")
+            print("📦 音訊緩衝區已滿，強制提交 (buffer size: \(audioBufferSize))")
             commitAudioBufferIfNeeded()
         }
         
         // 條件3：安全網 - 最長不超過設定的時間提交一次
         else if timeSinceLastActivity > maxAudioSubmissionInterval {
-            print("⏰ 安全網觸發（\(maxAudioSubmissionInterval)秒），提交音訊片段")
+            print("⏰ 安全網觸發（\(maxAudioSubmissionInterval)秒），提交音訊片段 (buffer size: \(audioBufferSize))")
             commitAudioBufferIfNeeded()
         }
     }
     
     /// 有條件地提交音訊緩衝區
     private func commitAudioBufferIfNeeded() {
-        guard audioBufferSize > 0 else { return }
+        // 即時翻譯模式下，即使 audioBufferSize 為 0，也應該提交
+        // 因為音訊數據一直在發送到 API，只是 VAD 可能沒有檢測到語音活動
+        // （例如：背景噪音、麥克風靈敏度、說話音量小等因素）
         
         commitAudioBuffer()
         audioBufferSize = 0
@@ -599,10 +730,15 @@ class RealtimeAPIService: ObservableObject {
         // 標記為新的翻譯回應
         isNewTranslationResponse = true
         
+        // 標記為正在等待回應
+        isWaitingForResponse = true
+        print("🔒 設置等待回應標誌 (isWaitingForResponse = true)")
+        
         let commitEvent: [String: Any] = [
             "type": "input_audio_buffer.commit"
         ]
         sendEvent(commitEvent)
+        print("📤 已發送 input_audio_buffer.commit")
 
         // 請求產生回應
         let responseEvent: [String: Any] = [
@@ -612,14 +748,15 @@ class RealtimeAPIService: ObservableObject {
             ]
         ]
         sendEvent(responseEvent)
+        print("📤 已發送 response.create")
     }
 
     // MARK: - 私有方法 - Audio
 
     /// 設定音訊錄製回調
     private func setupAudioRecorderCallbacks() {
-        audioRecorder.onAudioDataAvailable = { [weak self] data in
-            self?.sendAudioData(data)
+        audioRecorder.onAudioDataAvailable = { [weak self] data, volume in
+            self?.sendAudioData(data, volume: volume)
         }
 
         audioRecorder.onRecordingStateChanged = { [weak self] isRecording in
@@ -641,14 +778,38 @@ class RealtimeAPIService: ObservableObject {
     }
 
     /// 發送音訊資料
-    private func sendAudioData(_ data: Data) {
-        // 簡單的語音活動檢測（基於音訊數據大小）
-        if data.count > 100 { // 假設有音訊活動的最小閾值
-            isVoiceActive = true
-            lastAudioActivityTime = Date()
-            audioBufferSize += 1
+    private func sendAudioData(_ data: Data, volume: Float) {
+        // VAD 語音活動檢測
+        let hasVoiceActivity: Bool
+        
+        if isVADEnabled {
+            // 使用 iOS AVFoundation 提供的音量檢測
+            hasVoiceActivity = volume > vadThreshold
+            
+            if hasVoiceActivity {
+                isVoiceActive = true
+                lastAudioActivityTime = Date()
+                audioBufferSize += 1
+            }
+            
+            // 可選：記錄 VAD 狀態（用於調試）
+            #if DEBUG
+            if hasVoiceActivity && !isVoiceActive {
+                print("🎤 檢測到語音活動 (音量: \(String(format: "%.4f", volume)))")
+            }
+            #endif
+        } else {
+            // VAD 停用時，根據數據大小判斷（舊邏輯）
+            hasVoiceActivity = data.count > 100
+            
+            if hasVoiceActivity {
+                isVoiceActive = true
+                lastAudioActivityTime = Date()
+                audioBufferSize += 1
+            }
         }
 
+        // 始終發送音訊數據到 API（讓伺服器端處理）
         let base64Audio = AudioProcessor.convertToBase64PCM16(audioData: data)
 
         let audioEvent: [String: Any] = [
