@@ -17,9 +17,6 @@ enum Constants {
         /// WebSocket 基礎 URL
         static let baseURL = "wss://api.openai.com/v1/realtime"
 
-        /// 模型名稱
-        static let modelName = "gpt-4o-realtime-preview-2024-12-17"
-
         /// API 文件 URL
         static let documentationURL = "https://platform.openai.com/docs/guides/realtime"
 

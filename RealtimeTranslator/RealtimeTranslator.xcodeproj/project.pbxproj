@@ -33,6 +33,7 @@
 		9222BD762EB3050D0044F7AC /* APIKeySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BD572EB3050D0044F7AC /* APIKeySetupView.swift */; };
 		9222BE022EB889350044F7AC /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BE012EB889350044F7AC /* HistoryManager.swift */; };
 		92EBE3EC2EB98FB000A87443 /* VoiceActivityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EBE3EB2EB98FB000A87443 /* VoiceActivityDetector.swift */; };
+		92EBE3EE2EB994FB00A87443 /* RealtimeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EBE3ED2EB994FB00A87443 /* RealtimeModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -83,6 +84,7 @@
 		9222BD7C2EB3060D0044F7AC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9222BE012EB889350044F7AC /* HistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryManager.swift; sourceTree = "<group>"; };
 		92EBE3EB2EB98FB000A87443 /* VoiceActivityDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceActivityDetector.swift; sourceTree = "<group>"; };
+		92EBE3ED2EB994FB00A87443 /* RealtimeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -155,6 +157,7 @@
 		9222BD442EB3050D0044F7AC /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				92EBE3ED2EB994FB00A87443 /* RealtimeModel.swift */,
 				9222BD3F2EB3050D0044F7AC /* AppState.swift */,
 				9222BD402EB3050D0044F7AC /* ConnectionState.swift */,
 				9222BD412EB3050D0044F7AC /* LanguageOption.swift */,
@@ -423,6 +426,7 @@
 				9222BD732EB3050D0044F7AC /* StatusBar.swift in Sources */,
 				9222BD742EB3050D0044F7AC /* RealtimeTranslatorApp.swift in Sources */,
 				9222BD752EB3050D0044F7AC /* RecordButton.swift in Sources */,
+				92EBE3EE2EB994FB00A87443 /* RealtimeModel.swift in Sources */,
 				9222BD762EB3050D0044F7AC /* APIKeySetupView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

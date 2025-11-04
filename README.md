@@ -49,7 +49,7 @@ RealtimeTranslator 是一款 iOS 原生應用程式，利用 OpenAI 的 Realtime
 
 | 服務 | 用途 | 版本 |
 |------|------|------|
-| **OpenAI Realtime API** | 語音轉錄與翻譯 | gpt-4o-realtime-preview-2024-12-17 |
+| **OpenAI Realtime API** | 語音轉錄與翻譯 | gpt-realtime (穩定版) / gpt-4o-realtime-preview (可選) |
 
 #### 網路通訊
 
@@ -316,7 +316,15 @@ RealtimeTranslator/
 
 ### 智能 VAD 設定
 
-在「設定」→「智能語音檢測」中調整：
+在「設定」中調整各項參數：
+
+#### API 模型選擇
+
+- **gpt-realtime (穩定版)**: 最新穩定版，價格便宜 20%（預設）
+- **gpt-4o-realtime-preview (2024-12-17)**: Preview 版本
+- **gpt-4o-realtime-preview (2024-10-01)**: ⚠️ 即將棄用
+
+#### 智能語音檢測
 
 - **啟用智能 VAD**: 開啟 AI 語音檢測（推薦）
 - **停頓檢測時間**: 停頓多久後送出（預設 1.0 秒）
@@ -325,6 +333,19 @@ RealtimeTranslator/
 ---
 
 ## 📊 版本歷史
+
+### v1.3.1 (2025-01-04) - API 模型選擇功能
+
+**新功能**:
+- ✨ **新增 API 模型選擇功能**
+  - 支援 `gpt-realtime` 穩定版（預設，價格便宜 20%）
+  - 支援 preview 版本（2024-12-17、2024-10-01）
+  - 在設定頁面可切換模型
+- ✨ 新增 `RealtimeModel` 枚舉類型管理模型選項
+
+**優化**:
+- 🚀 預設使用穩定版模型（無 preview 無日期）
+- 🚀 移除硬編碼的模型名稱，改用動態選擇
 
 ### v1.3.0 (2025-01-04) - 智能語音檢測與成本優化
 

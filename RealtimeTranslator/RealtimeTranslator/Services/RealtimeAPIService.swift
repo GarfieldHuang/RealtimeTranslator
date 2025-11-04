@@ -61,8 +61,8 @@ class RealtimeAPIService: ObservableObject {
     /// WebSocket URL
     private let baseURL = "wss://api.openai.com/v1/realtime"
 
-    /// 模型名稱
-    private let model = "gpt-4o-realtime-preview-2024-12-17"
+    /// 當前使用的模型
+    private var selectedModel: RealtimeModel = .defaultModel
 
     /// 當前會話 ID
     private var currentSessionId: String?
@@ -238,7 +238,7 @@ class RealtimeAPIService: ObservableObject {
         }
 
         urlComponents.queryItems = [
-            URLQueryItem(name: "model", value: model)
+            URLQueryItem(name: "model", value: selectedModel.rawValue)
         ]
 
         guard let url = urlComponents.url else {
@@ -541,6 +541,19 @@ class RealtimeAPIService: ObservableObject {
     /// - Returns: (是否啟用, 靜默閾值, 最短語音長度)
     func getSmartVADSettings() -> (enabled: Bool, silenceThreshold: TimeInterval, minimumDuration: TimeInterval) {
         return (isSmartVADEnabled, smartVADSilenceThreshold, smartVADMinimumDuration)
+    }
+    
+    /// 設定 Realtime API 模型
+    /// - Parameter model: 模型選項
+    func setRealtimeModel(_ model: RealtimeModel) {
+        selectedModel = model
+        print("⚙️ Realtime API 模型已設定為: \(model.rawValue)")
+    }
+    
+    /// 獲取當前使用的模型
+    /// - Returns: 當前模型
+    func getRealtimeModel() -> RealtimeModel {
+        return selectedModel
     }
 
     /// 匯出歷史記錄為文字

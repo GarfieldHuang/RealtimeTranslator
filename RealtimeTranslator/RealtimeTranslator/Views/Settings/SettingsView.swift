@@ -42,6 +42,7 @@ struct SettingsView: View {
     @State private var smartVADSilenceThreshold: Double = 1.0
     @State private var smartVADMinimumDuration: Double = 0.05
     @State private var selectedInputLanguage: LanguageOption = .defaultInputLanguage
+    @State private var selectedModel: RealtimeModel = .defaultModel
 
     // MARK: - 視圖
 
@@ -60,6 +61,31 @@ struct SettingsView: View {
                     Button(action: { showingAPIKeyManagement = true }) {
                         Label("管理 API Key", systemImage: "key.fill")
                     }
+                }
+                
+                // API 模型選擇
+                Section(header: Text("API 模型")) {
+                    Picker("Realtime 模型", selection: $selectedModel) {
+                        ForEach(RealtimeModel.allCases) { model in
+                            VStack(alignment: .leading) {
+                                Text(model.displayName)
+                                if model.isDeprecated {
+                                    Text(model.description)
+                                        .font(.caption2)
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                            .tag(model)
+                        }
+                    }
+                    .onChange(of: selectedModel) { _, newValue in
+                        apiService.setRealtimeModel(newValue)
+                    }
+                    
+                    Text(selectedModel.description)
+                        .font(.caption)
+                        .foregroundColor(selectedModel.isDeprecated ? .orange : .secondary)
+                        .padding(.vertical, 4)
                 }
                 
                 // 語言設定區塊
@@ -388,6 +414,9 @@ struct SettingsView: View {
         
         // 載入當前輸入語言設定
         selectedInputLanguage = apiService.getInputLanguage()
+        
+        // 載入當前模型設定
+        selectedModel = apiService.getRealtimeModel()
     }
     
     /// 更新音訊設定
