@@ -38,6 +38,9 @@ class RealtimeAPIService: ObservableObject {
     /// 是否正在進行即時翻譯
     @Published var isLiveTranslating: Bool = false
 
+    /// 輸入音訊語言
+    @Published var inputLanguage: LanguageOption = .defaultInputLanguage
+
     // MARK: - 私有屬性
 
     /// WebSocket 管理器
@@ -48,9 +51,6 @@ class RealtimeAPIService: ObservableObject {
 
     /// 目標翻譯語言
     private var targetLanguage: LanguageOption = .defaultLanguage
-    
-    /// 輸入音訊語言
-    private var inputLanguage: LanguageOption = .defaultInputLanguage
 
     /// API Key
     private var apiKey: String?

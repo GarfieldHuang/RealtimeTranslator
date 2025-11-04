@@ -168,7 +168,7 @@ struct MainView: View {
                 // 原文顯示區
                 TranscriptionView(
                     text: apiService.currentTranscription,
-                    language: apiService.getInputLanguage()
+                    language: apiService.inputLanguage
                 )
                 .frame(maxHeight: .infinity)
 
