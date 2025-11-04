@@ -32,6 +32,7 @@
 		9222BD752EB3050D0044F7AC /* RecordButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BD522EB3050D0044F7AC /* RecordButton.swift */; };
 		9222BD762EB3050D0044F7AC /* APIKeySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BD572EB3050D0044F7AC /* APIKeySetupView.swift */; };
 		9222BE022EB889350044F7AC /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9222BE012EB889350044F7AC /* HistoryManager.swift */; };
+		92EBE3EC2EB98FB000A87443 /* VoiceActivityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EBE3EB2EB98FB000A87443 /* VoiceActivityDetector.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +82,7 @@
 		9222BD5B2EB3050D0044F7AC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9222BD7C2EB3060D0044F7AC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9222BE012EB889350044F7AC /* HistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryManager.swift; sourceTree = "<group>"; };
+		92EBE3EB2EB98FB000A87443 /* VoiceActivityDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceActivityDetector.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -165,6 +167,7 @@
 		9222BD4C2EB3050D0044F7AC /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				92EBE3EB2EB98FB000A87443 /* VoiceActivityDetector.swift */,
 				9222BE012EB889350044F7AC /* HistoryManager.swift */,
 				9222BD472EB3050D0044F7AC /* AudioProcessor.swift */,
 				9222BD482EB3050D0044F7AC /* AudioRecorder.swift */,
@@ -416,6 +419,7 @@
 				9222BD702EB3050D0044F7AC /* TranscriptionView.swift in Sources */,
 				9222BD712EB3050D0044F7AC /* TranslationView.swift in Sources */,
 				9222BD722EB3050D0044F7AC /* WebSocketManager.swift in Sources */,
+				92EBE3EC2EB98FB000A87443 /* VoiceActivityDetector.swift in Sources */,
 				9222BD732EB3050D0044F7AC /* StatusBar.swift in Sources */,
 				9222BD742EB3050D0044F7AC /* RealtimeTranslatorApp.swift in Sources */,
 				9222BD752EB3050D0044F7AC /* RecordButton.swift in Sources */,

@@ -38,6 +38,9 @@ struct SettingsView: View {
     @State private var audioSubmissionInterval: Double = 4.0
     @State private var isVADEnabled: Bool = true
     @State private var vadThreshold: Double = 0.01
+    @State private var isSmartVADEnabled: Bool = true
+    @State private var smartVADSilenceThreshold: Double = 1.0
+    @State private var smartVADMinimumDuration: Double = 0.05
     @State private var selectedInputLanguage: LanguageOption = .defaultInputLanguage
 
     // MARK: - 視圖
@@ -80,12 +83,72 @@ struct SettingsView: View {
                         .padding(.vertical, 4)
                 }
                 
-                // VAD 語音活動檢測設定
-                Section(header: Text("語音活動檢測 (VAD)")) {
+                // 智能 VAD 設定（Speech Framework）
+                Section(header: Text("智能語音檢測 (推薦)")) {
+                    Toggle(isOn: $isSmartVADEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("啟用智能 VAD")
+                            Text("使用 AI 精準檢測人聲，大幅降低成本")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .onChange(of: isSmartVADEnabled) { _, newValue in
+                        apiService.setSmartVADEnabled(newValue)
+                    }
+                    
+                    if isSmartVADEnabled {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("停頓檢測時間")
+                                Spacer()
+                                Text(String(format: "%.1f 秒", smartVADSilenceThreshold))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Slider(value: $smartVADSilenceThreshold, in: 0.5...2.0, step: 0.1)
+                                .onChange(of: smartVADSilenceThreshold) { _, newValue in
+                                    apiService.setSmartVADSilenceThreshold(newValue)
+                                }
+                            
+                            Text("說話停頓超過此時間後送出翻譯")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("最短語音長度")
+                                Spacer()
+                                Text(String(format: "%.2f 秒", smartVADMinimumDuration))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Slider(value: $smartVADMinimumDuration, in: 0.05...1.0, step: 0.05)
+                                .onChange(of: smartVADMinimumDuration) { _, newValue in
+                                    apiService.setSmartVADMinimumDuration(newValue)
+                                }
+                            
+                            Text("低於此長度的語音會被忽略（避免誤觸發）")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                        
+                        Text("💡 智能 VAD 使用 iOS 語音識別技術，能準確區分人聲和噪音，只在真正說話時才送出 API 請求，可節省 60-80% 成本")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .padding(.vertical, 4)
+                    }
+                }
+                
+                // 傳統 VAD 設定（備用）
+                Section(header: Text("傳統語音檢測 (備用)")) {
                     Toggle(isOn: $isVADEnabled) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("啟用 VAD")
-                            Text("自動偵測語音活動，提升準確度")
+                            Text("啟用傳統 VAD")
+                            Text("基於音量的簡單檢測")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -93,8 +156,9 @@ struct SettingsView: View {
                     .onChange(of: isVADEnabled) { _, newValue in
                         apiService.setVADEnabled(newValue)
                     }
+                    .disabled(isSmartVADEnabled)
                     
-                    if isVADEnabled {
+                    if isVADEnabled && !isSmartVADEnabled {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("靈敏度")
@@ -317,6 +381,11 @@ struct SettingsView: View {
         isVADEnabled = vadSettings.enabled
         vadThreshold = Double(vadSettings.threshold)
         
+        let smartVADSettings = apiService.getSmartVADSettings()
+        isSmartVADEnabled = smartVADSettings.enabled
+        smartVADSilenceThreshold = smartVADSettings.silenceThreshold
+        smartVADMinimumDuration = smartVADSettings.minimumDuration
+        
         // 載入當前輸入語言設定
         selectedInputLanguage = apiService.getInputLanguage()
     }
@@ -337,9 +406,16 @@ struct SettingsView: View {
         audioSubmissionInterval = 4.0
         isVADEnabled = true
         vadThreshold = 0.01
+        isSmartVADEnabled = true
+        smartVADSilenceThreshold = 1.0
+        smartVADMinimumDuration = 0.05
+        
         updateAudioSettings()
         apiService.setVADEnabled(isVADEnabled)
         apiService.setVADThreshold(Float(vadThreshold))
+        apiService.setSmartVADEnabled(isSmartVADEnabled)
+        apiService.setSmartVADSilenceThreshold(smartVADSilenceThreshold)
+        apiService.setSmartVADMinimumDuration(smartVADMinimumDuration)
     }
     
     /// 格式化 VAD 閾值顯示

@@ -18,13 +18,16 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.2.1</string>
+    <string>1.3.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
 
     <!-- 權限說明 -->
     <key>NSMicrophoneUsageDescription</key>
     <string>需要麥克風權限以進行語音輸入與即時翻譯</string>
+
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>需要語音識別權限以智能檢測說話的開始和結束，提升翻譯準確度並降低成本</string>
 
     <key>NSLocalNetworkUsageDescription</key>
     <string>需要網路連線以使用 OpenAI 即時翻譯服務</string>

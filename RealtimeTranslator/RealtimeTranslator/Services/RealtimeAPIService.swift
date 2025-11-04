@@ -48,6 +48,9 @@ class RealtimeAPIService: ObservableObject {
 
     /// 音訊錄製器
     private let audioRecorder = AudioRecorder()
+    
+    /// 語音活動檢測器（Speech Framework）
+    private var voiceActivityDetector: VoiceActivityDetector?
 
     /// 目標翻譯語言
     private var targetLanguage: LanguageOption = .defaultLanguage
@@ -97,8 +100,20 @@ class RealtimeAPIService: ObservableObject {
     /// 是否啟用 VAD（語音活動檢測）
     private var isVADEnabled = true
     
-    /// VAD 靈敏度閾值（0.0-1.0，越低越靈敏）
+    /// VAD 靈敏度閾值（0.0-1.0，越低越靈敏）- 舊版音量檢測用
     private var vadThreshold: Float = 0.01
+    
+    /// 是否啟用智能 VAD（Speech Framework）
+    private var isSmartVADEnabled = true
+    
+    /// 智能 VAD 靜默閾值（秒）
+    private var smartVADSilenceThreshold: TimeInterval = 1.0
+    
+    /// 智能 VAD 最短語音長度（秒）
+    private var smartVADMinimumDuration: TimeInterval = 0.05
+    
+    /// 是否正在語音片段中（由 VAD 檢測）
+    private var isInSpeechSegment = false
     
     /// 即時翻譯模式是否正在等待最後的回應
     private var isWaitingForFinalResponse = false
@@ -112,6 +127,91 @@ class RealtimeAPIService: ObservableObject {
         setupWebSocketCallbacks()
         setupAudioRecorderCallbacks()
         loadHistory()
+        setupVoiceActivityDetector()
+    }
+    
+    // MARK: - VAD 設定
+    
+    /// 設定語音活動檢測器
+    private func setupVoiceActivityDetector() {
+        // 根據輸入語言創建對應的 VAD
+        let locale = getLocaleForLanguage(inputLanguage)
+        voiceActivityDetector = VoiceActivityDetector(locale: locale)
+        
+        // 設定參數
+        voiceActivityDetector?.silenceThreshold = smartVADSilenceThreshold
+        voiceActivityDetector?.minimumSpeechDuration = smartVADMinimumDuration
+        
+        // 設定回調
+        voiceActivityDetector?.onSpeechStarted = { [weak self] in
+            self?.handleSpeechStarted()
+        }
+        
+        voiceActivityDetector?.onSpeechEnded = { [weak self] in
+            self?.handleSpeechEnded()
+        }
+    }
+    
+    /// 根據語言選項獲取 Locale
+    private func getLocaleForLanguage(_ language: LanguageOption) -> Locale {
+        switch language.code {
+        case "auto":
+            return Locale.current // 使用系統語言
+        case "zh-TW":
+            return Locale(identifier: "zh-TW")
+        case "zh":
+            return Locale(identifier: "zh-CN")
+        case "en":
+            return Locale(identifier: "en-US")
+        case "ja":
+            return Locale(identifier: "ja-JP")
+        case "ko":
+            return Locale(identifier: "ko-KR")
+        case "es":
+            return Locale(identifier: "es-ES")
+        case "fr":
+            return Locale(identifier: "fr-FR")
+        case "de":
+            return Locale(identifier: "de-DE")
+        case "pt":
+            return Locale(identifier: "pt-PT")
+        case "ru":
+            return Locale(identifier: "ru-RU")
+        case "it":
+            return Locale(identifier: "it-IT")
+        case "ar":
+            return Locale(identifier: "ar-SA")
+        case "hi":
+            return Locale(identifier: "hi-IN")
+        case "th":
+            return Locale(identifier: "th-TH")
+        case "vi":
+            return Locale(identifier: "vi-VN")
+        default:
+            return Locale.current
+        }
+    }
+    
+    /// 處理開始說話事件
+    private func handleSpeechStarted() {
+        print("🗣️ 檢測到開始說話，開始累積音訊")
+        isInSpeechSegment = true
+        audioBufferSize = 0
+        lastAudioActivityTime = Date()
+    }
+    
+    /// 處理停止說話事件
+    private func handleSpeechEnded() {
+        print("🤐 檢測到停止說話，提交音訊片段")
+        
+        guard isInSpeechSegment else { return }
+        isInSpeechSegment = false
+        
+        // 只有在即時翻譯模式下才提交
+        if isLiveTranslating && !isWaitingForResponse {
+            commitAudioBuffer()
+            audioBufferSize = 0
+        }
     }
     
     // MARK: - 歷史記錄管理
@@ -230,6 +330,25 @@ class RealtimeAPIService: ObservableObject {
             return
         }
 
+        // 如果啟用智能 VAD，先請求語音識別權限
+        if isSmartVADEnabled {
+            voiceActivityDetector?.requestAuthorization { [weak self] (granted: Bool) in
+                guard granted else {
+                    print("❌ 語音識別權限被拒絕，回退到舊版 VAD")
+                    self?.isSmartVADEnabled = false
+                    self?.startLiveTranslation()
+                    return
+                }
+                
+                self?.startLiveTranslationWithVAD()
+            }
+        } else {
+            startLiveTranslationWithVAD()
+        }
+    }
+    
+    /// 啟動即時翻譯（帶 VAD）
+    private func startLiveTranslationWithVAD() {
         // 請求麥克風權限
         audioRecorder.requestMicrophonePermission { [weak self] (granted: Bool) in
             guard granted else {
@@ -241,15 +360,27 @@ class RealtimeAPIService: ObservableObject {
                 try self?.audioRecorder.startRecording()
                 DispatchQueue.main.async {
                     self?.isLiveTranslating = true
-                    self?.isNewTranslationResponse = true // 重置新翻譯標誌
-                    self?.isWaitingForResponse = false // 重置等待回應標誌
-                    // 不清除 currentTranslation，保留之前的內容
+                    self?.isNewTranslationResponse = true
+                    self?.isWaitingForResponse = false
                     self?.currentTranscription = ""
                     self?.audioBufferSize = 0
                     self?.lastAudioActivityTime = Date()
+                    self?.isInSpeechSegment = false
                 }
                 
-                // 開始智能音訊提交機制
+                // 如果啟用智能 VAD，啟動檢測
+                if self?.isSmartVADEnabled == true {
+                    do {
+                        try self?.voiceActivityDetector?.startDetecting()
+                        print("✅ 智能 VAD 已啟動")
+                    } catch {
+                        print("❌ 智能 VAD 啟動失敗: \(error.localizedDescription)")
+                        print("⚠️ 回退到舊版 VAD")
+                        self?.isSmartVADEnabled = false
+                    }
+                }
+                
+                // 啟動檢查機制（用於舊版 VAD 或作為備用）
                 self?.startSmartAudioSubmission()
             } catch {
                 print("❌ 開始即時翻譯錄音失敗: \(error.localizedDescription)")
@@ -259,12 +390,19 @@ class RealtimeAPIService: ObservableObject {
 
     /// 停止即時翻譯模式
     func stopLiveTranslation() {
+        // 停止智能 VAD
+        if isSmartVADEnabled {
+            voiceActivityDetector?.stopDetecting()
+        }
+        
         // 停止錄音和定時器
         audioRecorder.stopRecording()
         stopSmartAudioSubmission()
         
-        // 最後提交一次音訊（如果有剩餘的緩衝）
-        commitAudioBuffer()
+        // 如果還在語音片段中，提交最後的音訊
+        if isInSpeechSegment {
+            commitAudioBuffer()
+        }
         
         // 標記為等待最後的回應
         isWaitingForFinalResponse = true
@@ -280,6 +418,7 @@ class RealtimeAPIService: ObservableObject {
         DispatchQueue.main.async {
             self.isVoiceActive = false
             self.audioBufferSize = 0
+            self.isInSpeechSegment = false
         }
     }
     
@@ -373,6 +512,35 @@ class RealtimeAPIService: ObservableObject {
     /// - Returns: 當前輸入語言
     func getInputLanguage() -> LanguageOption {
         return inputLanguage
+    }
+    
+    /// 啟用或停用智能 VAD（Speech Framework）
+    /// - Parameter enabled: 是否啟用
+    func setSmartVADEnabled(_ enabled: Bool) {
+        isSmartVADEnabled = enabled
+        print("⚙️ 智能 VAD \(enabled ? "已啟用" : "已停用")")
+    }
+    
+    /// 設定智能 VAD 靜默閾值
+    /// - Parameter threshold: 靜默時間（秒），建議範圍 0.5-2.0
+    func setSmartVADSilenceThreshold(_ threshold: TimeInterval) {
+        smartVADSilenceThreshold = max(0.5, min(3.0, threshold))
+        voiceActivityDetector?.silenceThreshold = smartVADSilenceThreshold
+        print("⚙️ 智能 VAD 靜默閾值已設定為: \(smartVADSilenceThreshold)秒")
+    }
+    
+    /// 設定智能 VAD 最短語音長度
+    /// - Parameter duration: 最短長度（秒），建議範圍 0.05-1.0
+    func setSmartVADMinimumDuration(_ duration: TimeInterval) {
+        smartVADMinimumDuration = max(0.05, min(2.0, duration))
+        voiceActivityDetector?.minimumSpeechDuration = smartVADMinimumDuration
+        print("⚙️ 智能 VAD 最短語音長度已設定為: \(smartVADMinimumDuration)秒")
+    }
+    
+    /// 獲取智能 VAD 設定
+    /// - Returns: (是否啟用, 靜默閾值, 最短語音長度)
+    func getSmartVADSettings() -> (enabled: Bool, silenceThreshold: TimeInterval, minimumDuration: TimeInterval) {
+        return (isSmartVADEnabled, smartVADSilenceThreshold, smartVADMinimumDuration)
     }
 
     /// 匯出歷史記錄為文字
@@ -731,29 +899,43 @@ class RealtimeAPIService: ObservableObject {
     private func checkAudioSubmissionConditions() {
         // 如果正在等待回應，不提交新的音訊
         guard !isWaitingForResponse else {
-            print("⏸️ 正在等待 API 回應，暫緩提交")
             return
         }
         
+        // 如果啟用智能 VAD，則主要依賴 Speech Framework 的檢測
+        // 這裡只保留緩衝區過大的檢查作為安全網
+        if isSmartVADEnabled {
+            // 只有在語音片段中才檢查緩衝區大小
+            if isInSpeechSegment && audioBufferSize > maxAudioBufferSize {
+                print("📦 語音片段過長，提前提交 (buffer size: \(audioBufferSize))")
+                commitAudioBuffer()
+                audioBufferSize = 0
+                lastAudioActivityTime = Date()
+            }
+            return
+        }
+        
+        // 舊版 VAD 邏輯（回退方案）
         let now = Date()
         let timeSinceLastActivity = now.timeIntervalSince(lastAudioActivityTime)
         
         // 條件1：檢測到語音停頓超過閾值
         if isVoiceActive && timeSinceLastActivity > voicePauseThreshold {
-            print("🔍 檢測到語音停頓，提交音訊片段 (buffer size: \(audioBufferSize))")
+            print("🔍 [舊版VAD] 檢測到語音停頓，提交音訊片段")
             commitAudioBufferIfNeeded()
             isVoiceActive = false
         }
         
         // 條件2：音訊緩衝區過大（避免過長片段）
         else if audioBufferSize > maxAudioBufferSize {
-            print("📦 音訊緩衝區已滿，強制提交 (buffer size: \(audioBufferSize))")
+            print("📦 [舊版VAD] 音訊緩衝區已滿，強制提交")
             commitAudioBufferIfNeeded()
         }
         
         // 條件3：安全網 - 最長不超過設定的時間提交一次
+        // 注意：智能 VAD 模式下這個安全網已被移除，節省成本
         else if timeSinceLastActivity > maxAudioSubmissionInterval {
-            print("⏰ 安全網觸發（\(maxAudioSubmissionInterval)秒），提交音訊片段 (buffer size: \(audioBufferSize))")
+            print("⏰ [舊版VAD] 安全網觸發")
             commitAudioBufferIfNeeded()
         }
     }
