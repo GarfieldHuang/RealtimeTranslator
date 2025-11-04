@@ -15,26 +15,26 @@ struct StatusBar: View {
     var body: some View {
         HStack {
             // 連線狀態
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Circle()
                     .fill(connectionState.statusColor)
-                    .frame(width: 10, height: 10)
+                    .frame(width: 8, height: 8)
 
                 Text(connectionState.displayText)
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
 
             Spacer()
 
             // Token 使用統計
-            HStack(spacing: 4) {
+            HStack(spacing: 3) {
                 Image(systemName: "chart.bar.fill")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.secondary)
 
                 Text("Tokens: \(tokenUsage.totalTokens)")
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
         }

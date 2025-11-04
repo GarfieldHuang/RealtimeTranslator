@@ -13,20 +13,22 @@ struct TranslationView: View {
     let language: LanguageOption
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             // 標題
             HStack {
                 Image(systemName: "globe")
+                    .font(.caption)
                     .foregroundColor(.blue)
 
                 Text("翻譯（\(language.name)）")
-                    .font(.headline)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .foregroundColor(.primary)
 
                 Spacer()
             }
             .padding(.horizontal)
-            .padding(.top, 12)
+            .padding(.top, 8)
 
             // 文字顯示區
             ScrollView {
@@ -46,7 +48,7 @@ struct TranslationView: View {
                     )
             )
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.bottom, 6)
         }
     }
 }

@@ -10,22 +10,25 @@ import SwiftUI
 /// 原文顯示視圖
 struct TranscriptionView: View {
     let text: String
+    let language: LanguageOption
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             // 標題
             HStack {
                 Image(systemName: "mic.fill")
+                    .font(.caption)
                     .foregroundColor(.blue)
 
-                Text("原文")
-                    .font(.headline)
+                Text("原文（\(language.name)）")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .foregroundColor(.primary)
 
                 Spacer()
             }
             .padding(.horizontal)
-            .padding(.top, 12)
+            .padding(.top, 8)
 
             // 文字顯示區
             ScrollView {
@@ -45,7 +48,7 @@ struct TranscriptionView: View {
                     )
             )
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.bottom, 6)
         }
     }
 }
@@ -54,7 +57,7 @@ struct TranscriptionView: View {
 
 #Preview {
     VStack {
-        TranscriptionView(text: "Hello, how are you?")
-        TranscriptionView(text: "")
+        TranscriptionView(text: "Hello, how are you?", language: .defaultInputLanguage)
+        TranscriptionView(text: "", language: .defaultInputLanguage)
     }
 }

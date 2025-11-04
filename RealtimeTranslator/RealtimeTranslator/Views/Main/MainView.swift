@@ -160,13 +160,17 @@ struct MainView: View {
                     connectionState: apiService.connectionState,
                     tokenUsage: apiService.tokenUsage
                 )
-                .padding()
+                .padding(.horizontal)
+                .padding(.vertical, 8)
 
                 Divider()
 
                 // 原文顯示區
-                TranscriptionView(text: apiService.currentTranscription)
-                    .frame(maxHeight: .infinity)
+                TranscriptionView(
+                    text: apiService.currentTranscription,
+                    language: apiService.getInputLanguage()
+                )
+                .frame(maxHeight: .infinity)
 
                 Divider()
 
@@ -180,11 +184,11 @@ struct MainView: View {
                 Divider()
 
                 // 控制按鈕區
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     // 翻譯模式選擇器
-                    VStack(spacing: 8) {
+                    VStack(spacing: 4) {
                         Text("翻譯模式")
-                            .font(.subheadline)
+                            .font(.caption)
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                         
@@ -202,26 +206,27 @@ struct MainView: View {
                     Button(action: {
                         toggleTranslation()
                     }) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             // 圖示
                             Image(systemName: buttonIcon)
-                                .font(.title2)
+                                .font(.title3)
 
                             // 文字
                             Text(buttonText)
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, 12)
                         .background(buttonBackgroundColor)
-                        .cornerRadius(12)
+                        .cornerRadius(10)
                     }
                     .disabled(!isEnabled)
                     .animation(.easeInOut(duration: 0.3), value: buttonBackgroundColor)
 
                     // 功能按鈕列
-                    HStack(spacing: 16) {
+                    HStack(spacing: 12) {
                         // 動態清除按鈕
                         Button(action: {
                             switch translationMode {
@@ -275,7 +280,8 @@ struct MainView: View {
                         .buttonStyle(.bordered)
                     }
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.vertical, 12)
             }
             .navigationTitle("RealtimeTranslator")
             .navigationBarTitleDisplayMode(.inline)
