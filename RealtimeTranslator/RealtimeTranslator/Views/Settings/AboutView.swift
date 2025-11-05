@@ -27,7 +27,7 @@ struct AboutView: View {
                         .fontWeight(.bold)
 
                     // 版本資訊
-                    Text("版本 1.3.3")
+                    Text("版本 1.3.4")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
 

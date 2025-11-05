@@ -23,14 +23,16 @@ struct MainView: View {
     @State private var selectedLanguage: LanguageOption = .defaultLanguage
     @State private var showingSettings = false
     @State private var showingLanguagePicker = false
-    @State private var translationMode: TranslationMode = .recording
+    @State private var showingInputLanguagePicker = false
+    @State private var selectedInputLanguage: LanguageOption = .defaultInputLanguage
+    @State private var translationMode: TranslationMode = .live
 
     // MARK: - 枚舉
     
     /// 翻譯模式
     enum TranslationMode: String, CaseIterable {
-        case recording = "錄音翻譯"
         case live = "即時翻譯"
+        case recording = "錄音翻譯"
         
         var icon: String {
             switch self {
@@ -267,15 +269,31 @@ struct MainView: View {
                             .foregroundColor(.orange)
                         }
 
-                        // 語言選擇按鈕
+                        // 輸入語言選擇按鈕
+                        Button(action: {
+                            showingInputLanguagePicker = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Text("輸入:")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(selectedInputLanguage.flag)
+                                    .font(.title3)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+
+                        // 輸出語言選擇按鈕
                         Button(action: {
                             showingLanguagePicker = true
                         }) {
-                            HStack {
+                            HStack(spacing: 4) {
+                                Text("輸出:")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                                 Text(selectedLanguage.flag)
-                                Text(selectedLanguage.name)
+                                    .font(.title3)
                             }
-                            .font(.subheadline)
                         }
                         .buttonStyle(.bordered)
                     }
@@ -297,16 +315,31 @@ struct MainView: View {
                     .environmentObject(appState)
             }
             .sheet(isPresented: $showingLanguagePicker) {
-                LanguagePickerView(selectedLanguage: $selectedLanguage)
+                LanguagePickerView(
+                    selectedLanguage: $selectedLanguage,
+                    title: "選擇輸出語言",
+                    languages: LanguageOption.availableLanguages
+                )
+            }
+            .sheet(isPresented: $showingInputLanguagePicker) {
+                LanguagePickerView(
+                    selectedLanguage: $selectedInputLanguage,
+                    title: "選擇輸入語言",
+                    languages: LanguageOption.availableInputLanguages
+                )
             }
             .onAppear {
                 connectToAPI()
+                selectedInputLanguage = apiService.getInputLanguage()
             }
             .onDisappear {
                 apiService.disconnect()
             }
             .onChange(of: selectedLanguage) { _, newLanguage in
                 apiService.updateTargetLanguage(newLanguage)
+            }
+            .onChange(of: selectedInputLanguage) { _, newLanguage in
+                apiService.updateInputLanguage(newLanguage)
             }
         }
     }
@@ -356,10 +389,12 @@ struct MainView: View {
 struct LanguagePickerView: View {
     @Environment(\.dismiss) var dismiss
     @Binding var selectedLanguage: LanguageOption
+    let title: String
+    let languages: [LanguageOption]
 
     var body: some View {
         NavigationView {
-            List(LanguageOption.availableLanguages) { language in
+            List(languages) { language in
                 Button(action: {
                     selectedLanguage = language
                     dismiss()
@@ -381,7 +416,7 @@ struct LanguagePickerView: View {
                 }
                 .foregroundColor(.primary)
             }
-            .navigationTitle("選擇翻譯語言")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

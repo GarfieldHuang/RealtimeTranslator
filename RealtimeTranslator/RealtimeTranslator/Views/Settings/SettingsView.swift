@@ -41,7 +41,6 @@ struct SettingsView: View {
     @State private var isSmartVADEnabled: Bool = true
     @State private var smartVADSilenceThreshold: Double = 1.0
     @State private var smartVADMinimumDuration: Double = 0.05
-    @State private var selectedInputLanguage: LanguageOption = .defaultInputLanguage
     @State private var selectedModel: RealtimeModel = .defaultModel
 
     // MARK: - 視圖
@@ -87,28 +86,7 @@ struct SettingsView: View {
                         .foregroundColor(selectedModel.isDeprecated ? .orange : .secondary)
                         .padding(.vertical, 4)
                 }
-                
-                // 語言設定區塊
-                Section(header: Text("語言設定")) {
-                    Picker("輸入語言", selection: $selectedInputLanguage) {
-                        ForEach(LanguageOption.availableInputLanguages) { language in
-                            HStack {
-                                Text(language.flag)
-                                Text(language.name)
-                            }
-                            .tag(language)
-                        }
-                    }
-                    .onChange(of: selectedInputLanguage) { _, newValue in
-                        apiService.updateInputLanguage(newValue)
-                    }
-                    
-                    Text("選擇輸入音訊的語言以提高辨識準確度。選擇「自動偵測」讓系統自動判斷。")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 4)
-                }
-                
+
                 // 智能 VAD 設定（Speech Framework）
                 Section(header: Text("智能語音檢測 (推薦)")) {
                     Toggle(isOn: $isSmartVADEnabled) {
@@ -359,7 +337,7 @@ struct SettingsView: View {
                     HStack {
                         Text("版本")
                         Spacer()
-                        Text("1.3.3")
+                        Text("1.3.4")
                             .foregroundColor(.secondary)
                     }
                 }
@@ -411,10 +389,7 @@ struct SettingsView: View {
         isSmartVADEnabled = smartVADSettings.enabled
         smartVADSilenceThreshold = smartVADSettings.silenceThreshold
         smartVADMinimumDuration = smartVADSettings.minimumDuration
-        
-        // 載入當前輸入語言設定
-        selectedInputLanguage = apiService.getInputLanguage()
-        
+
         // 載入當前模型設定
         selectedModel = apiService.getRealtimeModel()
     }
