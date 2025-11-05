@@ -202,10 +202,20 @@ class RealtimeAPIService: ObservableObject {
     
     /// 處理停止說話事件
     private func handleSpeechEnded() {
-        print("🤐 檢測到停止說話，提交音訊片段")
+        print("🤐 檢測到停止說話")
         
         guard isInSpeechSegment else { return }
         isInSpeechSegment = false
+        
+        // 檢查是否有足夠的音訊數據（避免提交空音訊導致幻覺回應）
+        let minAudioBufferSize = 10 // 最少需要 10 個音訊片段（約 0.3 秒）
+        if audioBufferSize < minAudioBufferSize {
+            print("⚠️ 音訊數據不足 (\(audioBufferSize) < \(minAudioBufferSize))，跳過提交")
+            audioBufferSize = 0
+            return
+        }
+        
+        print("✅ 音訊數據充足 (\(audioBufferSize) 片段)，提交音訊片段")
         
         // 只有在即時翻譯模式下才提交
         if isLiveTranslating && !isWaitingForResponse {
@@ -1030,17 +1040,21 @@ class RealtimeAPIService: ObservableObject {
 
     /// 發送音訊資料
     private func sendAudioData(_ data: Data, volume: Float) {
-        // VAD 語音活動檢測
+        // 如果正在語音片段中（由智能 VAD 或舊版 VAD 檢測），累積音訊數據
+        if isInSpeechSegment {
+            audioBufferSize += 1
+        }
+        
+        // VAD 語音活動檢測（舊版 VAD 用於備用）
         let hasVoiceActivity: Bool
         
-        if isVADEnabled {
+        if isVADEnabled && !isSmartVADEnabled {
             // 使用 iOS AVFoundation 提供的音量檢測
             hasVoiceActivity = volume > vadThreshold
             
             if hasVoiceActivity {
                 isVoiceActive = true
                 lastAudioActivityTime = Date()
-                audioBufferSize += 1
             }
             
             // 可選：記錄 VAD 狀態（用於調試）
@@ -1049,14 +1063,13 @@ class RealtimeAPIService: ObservableObject {
                 print("🎤 檢測到語音活動 (音量: \(String(format: "%.4f", volume)))")
             }
             #endif
-        } else {
+        } else if !isSmartVADEnabled {
             // VAD 停用時，根據數據大小判斷（舊邏輯）
             hasVoiceActivity = data.count > 100
             
             if hasVoiceActivity {
                 isVoiceActive = true
                 lastAudioActivityTime = Date()
-                audioBufferSize += 1
             }
         }
 
