@@ -359,7 +359,7 @@ struct SettingsView: View {
                     HStack {
                         Text("版本")
                         Spacer()
-                        Text("1.2.1")
+                        Text("1.3.3")
                             .foregroundColor(.secondary)
                     }
                 }
