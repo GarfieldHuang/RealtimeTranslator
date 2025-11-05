@@ -977,13 +977,14 @@ class RealtimeAPIService: ObservableObject {
         isWaitingForResponse = true
         print("🔒 設置等待回應標誌 (isWaitingForResponse = true)")
         
+        // 1. 提交音訊
         let commitEvent: [String: Any] = [
             "type": "input_audio_buffer.commit"
         ]
         sendEvent(commitEvent)
         print("📤 已發送 input_audio_buffer.commit")
 
-        // 請求產生回應
+        // 2. 請求產生回應
         let responseEvent: [String: Any] = [
             "type": "response.create",
             "response": [
@@ -992,6 +993,13 @@ class RealtimeAPIService: ObservableObject {
         ]
         sendEvent(responseEvent)
         print("📤 已發送 response.create")
+        
+        // 3. ⭐️ 清空音訊緩衝區（避免重複處理舊音訊）
+        let clearEvent: [String: Any] = [
+            "type": "input_audio_buffer.clear"
+        ]
+        sendEvent(clearEvent)
+        print("🗑️ 已發送 input_audio_buffer.clear（清空緩衝區）")
     }
 
     // MARK: - 私有方法 - Audio
