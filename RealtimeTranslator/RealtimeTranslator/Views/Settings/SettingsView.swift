@@ -38,7 +38,7 @@ struct SettingsView: View {
     @State private var audioSubmissionInterval: Double = 4.0
     @State private var isVADEnabled: Bool = true
     @State private var vadThreshold: Double = 0.01
-    @State private var isSmartVADEnabled: Bool = true
+    @State private var isSmartVADEnabled: Bool = false
     @State private var smartVADSilenceThreshold: Double = 1.0
     @State private var smartVADMinimumDuration: Double = 0.05
     @State private var selectedModel: RealtimeModel = .defaultModel
@@ -88,11 +88,11 @@ struct SettingsView: View {
                 }
 
                 // 智能 VAD 設定（Speech Framework）
-                Section(header: Text("智能語音檢測 (推薦)")) {
+                Section(header: Text("智能語音檢測")) {
                     Toggle(isOn: $isSmartVADEnabled) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("啟用智能 VAD")
-                            Text("使用 AI 精準檢測人聲，大幅降低成本")
+                            Text("使用 AI 檢測人聲，可降低token，但速度較慢")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -148,11 +148,11 @@ struct SettingsView: View {
                 }
                 
                 // 傳統 VAD 設定（備用）
-                Section(header: Text("傳統語音檢測 (備用)")) {
+                Section(header: Text("傳統語音檢測")) {
                     Toggle(isOn: $isVADEnabled) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("啟用傳統 VAD")
-                            Text("基於音量的簡單檢測")
+                            Text("基於音量的傳統檢測")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -410,7 +410,7 @@ struct SettingsView: View {
         audioSubmissionInterval = 4.0
         isVADEnabled = true
         vadThreshold = 0.01
-        isSmartVADEnabled = true
+        isSmartVADEnabled = false
         smartVADSilenceThreshold = 1.0
         smartVADMinimumDuration = 0.05
         

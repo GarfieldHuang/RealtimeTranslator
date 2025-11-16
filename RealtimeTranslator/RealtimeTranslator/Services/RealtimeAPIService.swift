@@ -104,7 +104,7 @@ class RealtimeAPIService: ObservableObject {
     private var vadThreshold: Float = 0.01
     
     /// 是否啟用智能 VAD（Speech Framework）
-    private var isSmartVADEnabled = true
+    private var isSmartVADEnabled = false
     
     /// 智能 VAD 靜默閾值（秒）
     private var smartVADSilenceThreshold: TimeInterval = 1.0
